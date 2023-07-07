@@ -191,9 +191,16 @@ def generate(
             f"Cannot generate image for pipeline {pipeline_name} and {prompt}"
         )
      
-
-    output_path = "https://huggingface.co/datasets/FFusion/FF"  # Define output_path here
-    output_images = []  # Initialize output_images as an empty list
+    # Save images to Hugging Face Hub or locally
+        
+    current_datetime = datetime.now()
+    metadata = {
+        "prompt": prompt,
+        "timestamp": str(current_datetime),
+    }
+    output_path = "/data"
+    os.makedirs(output_path, exist_ok=True)
+    output_images = []  # list to hold output image objects
     for _ in range(num_images):  # loop over number of images
         result = pipe(**kwargs)  # generate one image at a time
         images = result.images
@@ -203,18 +210,14 @@ def generate(
                 + sanitize_filename(re.sub(r"\s+", "_", prompt)[:50])
                 + f"_{i}_{datetime.now().timestamp()}"
             )
-
             image.save(f"{filename}.png")
             output_images.append(image)  # add the image object to the list
 
-    # Save images to Hugging Face Hub or locally
-    current_datetime = datetime.now()
-    metadata = "fff"  # replace with your actual metadata
-    for i, image in enumerate(output_images):
-        save_to_hub(image, current_datetime, metadata, f"{output_path}/images/{i}.png")
+    for image in output_images:
+        with open(f"{filename}.txt", "w") as f:
+            f.write(prompt)
 
     return output_images  # return the list of image objects
-
 
 
 
