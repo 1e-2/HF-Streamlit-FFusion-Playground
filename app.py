@@ -16,14 +16,27 @@ def sanitize_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "_", filename)
 
 from typing import Optional, Literal, Union
-from diffusers import DiffusionPipeline, DDIMScheduler
+from diffusers import (DiffusionPipeline, DDIMScheduler, DDPMScheduler, PNDMScheduler, 
+                       LMSDiscreteScheduler, EulerDiscreteScheduler, 
+                       EulerAncestralDiscreteScheduler, DPMSolverMultistepScheduler, 
+                       DPMSolverSinglestepScheduler)
+
+AVAILABLE_SCHEDULERS = {
+    "DDIM": DDIMScheduler,
+    "DDPM": DDPMScheduler,
+    "PNDM": PNDMScheduler,
+    "LMS Discrete": LMSDiscreteScheduler,
+    "Euler Discrete": EulerDiscreteScheduler,
+    "Euler Ancestral Discrete": EulerAncestralDiscreteScheduler,
+    "DPM Solver Multistep": DPMSolverMultistepScheduler,
+    "DPM Solver Singlestep": DPMSolverSinglestepScheduler,
+}
 HF_TOKEN = os.environ.get("HF_TOKEN")
 import streamlit as st
 st.set_page_config(layout="wide")
 import torch
 from diffusers import (
     StableDiffusionPipeline,
-    EulerDiscreteScheduler,
     StableDiffusionInpaintPipeline,
     StableDiffusionImg2ImgPipeline,
 )
@@ -43,6 +56,7 @@ from PIL.PngImagePlugin import PngInfo
 from st_clickable_images import clickable_images
 
 import streamlit.components.v1 as components
+
 
 prefix = 'image_generation'
 
@@ -78,7 +92,7 @@ def display_and_download_images(output_images, metadata):
             
 PIPELINE_NAMES = Literal["txt2img", "inpaint", "img2img"]
 
-DEFAULT_PROMPT = "a sprinkled donut sitting on top of a purple cherry apple with ice cubes, colorful hyperrealism, digital explosion of vibrant colors and abstract digital elements"
+DEFAULT_PROMPT = "sprinkled donut sitting on top of a purple cherry apple, colorful hyperrealism"
 DEFAULT_WIDTH, DEFAULT_HEIGHT = 512, 512
 OUTPUT_IMAGE_KEY = "output_img"
 LOADED_IMAGE_KEY = "loaded_image"
@@ -97,7 +111,8 @@ def set_image(key: str, img: Image.Image):
 
 @st.cache_resource(max_entries=1)
 def get_pipeline(
-    name: PIPELINE_NAMES,
+    name: str,
+    scheduler_name: str = None,
 ) -> Union[
     StableDiffusionPipeline,
     StableDiffusionImg2ImgPipeline,
@@ -107,10 +122,18 @@ def get_pipeline(
         model_id = "FFusion/FFusion-BaSE"
         
         pipeline = DiffusionPipeline.from_pretrained(model_id)
-        # switch the scheduler in the pipeline to use the DDIMScheduler
-        pipeline.scheduler = DDIMScheduler.from_config(
-            pipeline.scheduler.config, rescale_betas_zero_snr=True, timestep_spacing="trailing"
-        )
+
+        # Use specified scheduler if provided, else use DDIMScheduler
+        if scheduler_name:
+            SchedulerClass = AVAILABLE_SCHEDULERS[scheduler_name]
+            pipeline.scheduler = SchedulerClass.from_config(
+                pipeline.scheduler.config, rescale_betas_zero_snr=True, timestep_spacing="trailing"
+            )
+        else:
+            pipeline.scheduler = DDIMScheduler.from_config(
+                pipeline.scheduler.config, rescale_betas_zero_snr=True, timestep_spacing="trailing"
+            )
+            
         pipeline = pipeline.to("cuda")
         return pipeline
 
@@ -203,9 +226,21 @@ def prompt_and_generate_button(prefix, pipeline_name: PIPELINE_NAMES, **kwargs):
         guidance_scale = st.slider(
             "Guidance scale", min_value=0.0, max_value=20.0, value=7.5, step=0.5, key=f"{prefix}-guidance-scale"
         )
+    # Add a select box for the schedulers
+    scheduler_name = st.selectbox(
+        "Choose a Scheduler",
+        options=list(AVAILABLE_SCHEDULERS.keys()),
+        index=0,  # Default index
+        key=f"{prefix}-scheduler",
+    )
+    scheduler_class = AVAILABLE_SCHEDULERS[scheduler_name]  # Get the selected scheduler class
+
+
+    pipe = get_pipeline(pipeline_name, scheduler_name=scheduler_name)        
+    
    # enable_attention_slicing = st.checkbox('Enable attention slicing (enables higher resolutions but is slower)', key=f"{prefix}-attention-slicing", value=True)
    # enable_xformers = st.checkbox('Enable xformers library (better memory usage)', key=f"{prefix}-xformers", value=True)
-        num_images = st.slider("Number of images to generate", min_value=1, max_value=4, value=1, key=f"{prefix}-num-images")
+    num_images = st.slider("Number of images to generate", min_value=1, max_value=4, value=1, key=f"{prefix}-num-images")
 
     images = []
 
