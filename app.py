@@ -9,6 +9,9 @@ import io
 import tempfile
 import zipfile
 import PIL
+import subprocess
+from huggingface_hub import Repository
+from utils import save_to_hub, save_to_local
 from dataclasses import dataclass
 from io import BytesIO
 def sanitize_filename(filename):
@@ -165,7 +168,7 @@ def generate(
 
     if enable_xformers:
         pipe.enable_xformers_memory_efficient_attention()
-        
+
     kwargs = dict(
         prompt=prompt,
         negative_prompt=negative_prompt,
@@ -174,7 +177,6 @@ def generate(
         guidance_scale=guidance_scale,
         guidance_rescale=0.7
     )
-    print("kwargs", kwargs)
 
     if pipeline_name == "txt2img":
         kwargs.update(width=width, height=height)
@@ -186,6 +188,13 @@ def generate(
         raise Exception(
             f"Cannot generate image for pipeline {pipeline_name} and {prompt}"
         )
+
+    # Save images to Hugging Face Hub or locally
+    current_datetime = datetime.now()
+    metadata = {
+        "prompt": prompt,
+        "timestamp": str(current_datetime),
+    }
 
     output_images = []  # list to hold output image objects
     for _ in range(num_images):  # loop over number of images
@@ -200,11 +209,18 @@ def generate(
             image.save(f"{filename}.png")
             output_images.append(image)  # add the image object to the list
 
+            # Save image to Hugging Face Hub
+            output_path = f"images/{i}.png"
+            save_to_hub(image, current_datetime, metadata, output_path)
+
     for image in output_images:
         with open(f"{filename}.txt", "w") as f:
             f.write(prompt)
 
     return output_images  # return the list of image objects
+
+
+
 
 
 
