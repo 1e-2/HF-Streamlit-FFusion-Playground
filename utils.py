@@ -97,9 +97,9 @@ def save_to_hub(image, current_datetime, metadata, output_path):
         username = "FFusion"
         repo_name = "FF"
         try:
-            repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token)
+            repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token, repo_type="dataset")
         except RepositoryNotFoundError:
-            repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token)
+            repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token, repo_type="dataset")
 
         # Create the directory if it does not exist
         os.makedirs(os.path.dirname(f"{repo.local_dir}/{output_path}"), exist_ok=True)
