@@ -52,11 +52,6 @@ def use_auth_token():
     return False
 
 
-def create_base_page():
-    st.set_page_config(layout="wide")
-    st.title("Diffuzers")
-    st.markdown("Welcome to Diffuzers! A web app for [🤗 Diffusers](https://github.com/huggingface/diffusers)")
-
 
 def download_file(file_url):
     r = requests.get(file_url, stream=True)
@@ -68,7 +63,7 @@ def download_file(file_url):
 
 
 def cache_folder():
-    _cache_folder = os.path.join(os.path.expanduser("~"), ".diffuzers")
+    _cache_folder = os.path.join(os.path.expanduser("~"), ".ffusion")
     os.makedirs(_cache_folder, exist_ok=True)
     return _cache_folder
 
@@ -99,12 +94,12 @@ def save_to_hub(image, current_datetime, metadata, output_path):
         token = os.getenv("HF_TOKEN")
         api = HfApi()
 
-        username = "idlebg"
+        username = "FFusion"
         repo_name = "FF"
         try:
-            repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}")
+            repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token)
         except RepositoryNotFoundError:
-            repo = Repository(f"{username}/{repo_name}", create_from=f"{username}/{repo_name}")
+            repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token)
 
         # Create the directory if it does not exist
         os.makedirs(os.path.dirname(f"{repo.local_dir}/{output_path}"), exist_ok=True)
