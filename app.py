@@ -9,6 +9,9 @@ import io
 import tempfile
 import zipfile
 import PIL
+import subprocess
+from huggingface_hub import Repository
+from utils import save_to_hub, save_to_local
 from dataclasses import dataclass
 from io import BytesIO
 def sanitize_filename(filename):
@@ -16,14 +19,27 @@ def sanitize_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "_", filename)
 
 from typing import Optional, Literal, Union
-from diffusers import DiffusionPipeline, DDIMScheduler
+from diffusers import (DiffusionPipeline, DDIMScheduler, DDPMScheduler, PNDMScheduler, 
+                       LMSDiscreteScheduler, EulerDiscreteScheduler, 
+                       EulerAncestralDiscreteScheduler, DPMSolverMultistepScheduler, 
+                       DPMSolverSinglestepScheduler)
+
+AVAILABLE_SCHEDULERS = {
+    "DDIM": DDIMScheduler,
+    "DDPM": DDPMScheduler,
+    "PNDM": PNDMScheduler,
+    "LMS Discrete": LMSDiscreteScheduler,
+    "Euler Discrete": EulerDiscreteScheduler,
+    "Euler Ancestral Discrete": EulerAncestralDiscreteScheduler,
+    "DPM Solver Multistep": DPMSolverMultistepScheduler,
+    "DPM Solver Singlestep": DPMSolverSinglestepScheduler,
+}
 HF_TOKEN = os.environ.get("HF_TOKEN")
 import streamlit as st
 st.set_page_config(layout="wide")
 import torch
 from diffusers import (
     StableDiffusionPipeline,
-    EulerDiscreteScheduler,
     StableDiffusionInpaintPipeline,
     StableDiffusionImg2ImgPipeline,
 )
@@ -43,6 +59,7 @@ from PIL.PngImagePlugin import PngInfo
 from st_clickable_images import clickable_images
 
 import streamlit.components.v1 as components
+
 
 prefix = 'image_generation'
 
@@ -78,7 +95,7 @@ def display_and_download_images(output_images, metadata):
             
 PIPELINE_NAMES = Literal["txt2img", "inpaint", "img2img"]
 
-DEFAULT_PROMPT = "a sprinkled donut sitting on top of a purple cherry apple with ice cubes, colorful hyperrealism, digital explosion of vibrant colors and abstract digital elements"
+DEFAULT_PROMPT = "sprinkled purple apple donut sitting on top of a ice table, colorful hyperrealism"
 DEFAULT_WIDTH, DEFAULT_HEIGHT = 512, 512
 OUTPUT_IMAGE_KEY = "output_img"
 LOADED_IMAGE_KEY = "loaded_image"
@@ -97,7 +114,8 @@ def set_image(key: str, img: Image.Image):
 
 @st.cache_resource(max_entries=1)
 def get_pipeline(
-    name: PIPELINE_NAMES,
+    name: str,
+    scheduler_name: str = None,
 ) -> Union[
     StableDiffusionPipeline,
     StableDiffusionImg2ImgPipeline,
@@ -107,10 +125,18 @@ def get_pipeline(
         model_id = "FFusion/FFusion-BaSE"
         
         pipeline = DiffusionPipeline.from_pretrained(model_id)
-        # switch the scheduler in the pipeline to use the DDIMScheduler
-        pipeline.scheduler = DDIMScheduler.from_config(
-            pipeline.scheduler.config, rescale_betas_zero_snr=True, timestep_spacing="trailing"
-        )
+
+        # Use specified scheduler if provided, else use DDIMScheduler
+        if scheduler_name:
+            SchedulerClass = AVAILABLE_SCHEDULERS[scheduler_name]
+            pipeline.scheduler = SchedulerClass.from_config(
+                pipeline.scheduler.config, rescale_betas_zero_snr=True, timestep_spacing="trailing"
+            )
+        else:
+            pipeline.scheduler = DDIMScheduler.from_config(
+                pipeline.scheduler.config, rescale_betas_zero_snr=True, timestep_spacing="trailing"
+            )
+            
         pipeline = pipeline.to("cuda")
         return pipeline
 
@@ -142,7 +168,7 @@ def generate(
 
     if enable_xformers:
         pipe.enable_xformers_memory_efficient_attention()
-        
+
     kwargs = dict(
         prompt=prompt,
         negative_prompt=negative_prompt,
@@ -151,7 +177,6 @@ def generate(
         guidance_scale=guidance_scale,
         guidance_rescale=0.7
     )
-    print("kwargs", kwargs)
 
     if pipeline_name == "txt2img":
         kwargs.update(width=width, height=height)
@@ -163,6 +188,13 @@ def generate(
         raise Exception(
             f"Cannot generate image for pipeline {pipeline_name} and {prompt}"
         )
+
+    # Save images to Hugging Face Hub or locally
+    current_datetime = datetime.now()
+    metadata = {
+        "prompt": prompt,
+        "timestamp": str(current_datetime),
+    }
 
     output_images = []  # list to hold output image objects
     for _ in range(num_images):  # loop over number of images
@@ -177,35 +209,65 @@ def generate(
             image.save(f"{filename}.png")
             output_images.append(image)  # add the image object to the list
 
+            # Save image to Hugging Face Hub
+            output_path = f"images/{i}.png"
+            save_to_hub(image, current_datetime, metadata, output_path)
+
     for image in output_images:
         with open(f"{filename}.txt", "w") as f:
             f.write(prompt)
 
+    
+    # After generating the images, clear the GPU cache
+    torch.cuda.empty_cache()
+
+    
     return output_images  # return the list of image objects
 
 
 
+
+
+
 def prompt_and_generate_button(prefix, pipeline_name: PIPELINE_NAMES, **kwargs):
-    prompt = st.text_area(
-        "Prompt",
-        value=DEFAULT_PROMPT,
-        key=f"{prefix}-prompt",
-    )
-    negative_prompt = st.text_area(
-        "Negative prompt",
-        value="(disfigured), bad quality, ((bad art)), ((deformed)), ((extra limbs)), (((duplicate))), ((morbid)), (((ugly)), blurry, ((bad anatomy)), (((bad proportions))), cloned face, body out of frame, out of frame, bad anatomy, gross proportions, (malformed limbs), ((missing arms)), ((missing legs)), (((extra arms))), (((extra legs))), (fused fingers), (too many fingers), (((long neck))), Deformed, blurry",
-        key=f"{prefix}-negative-prompt",
-    )
     col1, col2 = st.columns(2)
     with col1:
-        steps = st.slider("Number of inference steps", min_value=11, max_value=69, value=14, key=f"{prefix}-inference-steps")
+        prompt = st.text_area(
+            "Prompt",
+            value=DEFAULT_PROMPT,
+            key=f"{prefix}-prompt",
+        )
     with col2:
+        negative_prompt = st.text_area(
+            "Negative prompt",
+            value="(disfigured), bad quality, ((bad art)), ((deformed)), ((extra limbs)), (((duplicate))), ((morbid)), (((ugly)), blurry, ((bad anatomy)), (((bad proportions))), cloned face, body out of frame, out of frame, bad anatomy, gross proportions, (malformed limbs), ((missing arms)), ((missing legs)), (((extra arms))), (((extra legs))), (fused fingers), (too many fingers), (((long neck))), Deformed, blurry",
+            key=f"{prefix}-negative-prompt",
+        )
+
+    col3, col4, col5 = st.columns(3)
+    with col3:
+        steps = st.slider("Number of inference steps", min_value=11, max_value=69, value=14, key=f"{prefix}-inference-steps")
+    with col4:
         guidance_scale = st.slider(
             "Guidance scale", min_value=0.0, max_value=20.0, value=7.5, step=0.5, key=f"{prefix}-guidance-scale"
         )
+    with col5:
+        num_images = st.slider("Number of images to generate", min_value=1, max_value=2, value=1, key=f"{prefix}-num-images")
+        
+    # Add a select box for the schedulers
+    scheduler_name = st.selectbox(
+        "Choose a Scheduler",
+        options=list(AVAILABLE_SCHEDULERS.keys()),
+        index=0,  # Default index
+        key=f"{prefix}-scheduler",
+    )
+    scheduler_class = AVAILABLE_SCHEDULERS[scheduler_name]  # Get the selected scheduler class
+
+
+    pipe = get_pipeline(pipeline_name, scheduler_name=scheduler_name)        
+    
    # enable_attention_slicing = st.checkbox('Enable attention slicing (enables higher resolutions but is slower)', key=f"{prefix}-attention-slicing", value=True)
    # enable_xformers = st.checkbox('Enable xformers library (better memory usage)', key=f"{prefix}-xformers", value=True)
-        num_images = st.slider("Number of images to generate", min_value=1, max_value=4, value=1, key=f"{prefix}-num-images")
 
     images = []
 
