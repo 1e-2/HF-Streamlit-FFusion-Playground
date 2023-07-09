@@ -2,4 +2,4 @@
 # HF-Gradio-FF-beta-Playground
 
 demo @ [https://huggingface.co/spaces/FFusion/FFusion.AI-beta-Playground](https://huggingface.co/spaces/FFusion/FFusionAI-Streamlit-Playground)
-based on dlebech
+used portions of dlebech & diffuzers stramlit code
