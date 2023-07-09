@@ -8,7 +8,7 @@ from datetime import datetime
 from threading import Thread
 from huggingface_hub import Repository
 import subprocess
-
+import random
 import requests
 import streamlit as st
 import torch
@@ -82,24 +82,43 @@ def clear_memory(preserve):
 
 from huggingface_hub import Repository
 
+
+
+
 def save_to_hub(image, current_datetime, metadata, output_path):
     """Saves an image to Hugging Face Hub"""
     try:
         # Convert image to byte array
         byte_arr = io.BytesIO()
-        image.save(byte_arr, format='PNG')
+
+        # Check if the image has metadata
+        if image.info:
+            # Save as PNG
+            image.save(byte_arr, format='PNG')
+        else:
+            # Save as JPG
+            image.save(byte_arr, format='JPEG')
+
         byte_arr = byte_arr.getvalue()
 
         # Create a repository object
         token = os.getenv("HF_TOKEN")
         api = HfApi()
-
         username = "FFusion"
         repo_name = "FF"
         try:
             repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token, repo_type="dataset")
         except RepositoryNotFoundError:
             repo = Repository(f"{username}/{repo_name}", clone_from=f"{username}/{repo_name}", use_auth_token=token, repo_type="dataset")
+
+        # Pull the latest changes from the remote repository
+        repo.git_pull()
+        
+        # Generate a random 10-digit number
+        random_number = random.randint(1000000000, 9999999999)
+
+        # Replace "0.png" in output_path with the random number
+        output_path = output_path.replace("0.png", f"{random_number}.png")
 
         # Create the directory if it does not exist
         os.makedirs(os.path.dirname(f"{repo.local_dir}/{output_path}"), exist_ok=True)
@@ -112,16 +131,15 @@ def save_to_hub(image, current_datetime, metadata, output_path):
         subprocess.run(["git", "config", "user.name", "idle stoev"], check=True, cwd=repo.local_dir)
         subprocess.run(["git", "config", "user.email", "di@ffusion.ai"], check=True, cwd=repo.local_dir)
 
+
         # Commit and push changes
         repo.git_add(pattern=".")
         repo.git_commit(f"Add image at {current_datetime}")
         print(f"Pushing changes to {username}/{repo_name}...")
         repo.git_push()
         print(f"Image saved to {username}/{repo_name}/{output_path}")
-
     except Exception as e:
         print(f"Failed to save image to Hugging Face Hub: {e}")
-
 
 
 
