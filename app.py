@@ -95,7 +95,7 @@ def display_and_download_images(output_images, metadata):
             
 PIPELINE_NAMES = Literal["txt2img", "inpaint", "img2img"]
 
-DEFAULT_PROMPT = "sprinkled donut sitting on top of a purple cherry apple, colorful hyperrealism"
+DEFAULT_PROMPT = "sprinkled purple apple donut sitting on top of a ice table, colorful hyperrealism"
 DEFAULT_WIDTH, DEFAULT_HEIGHT = 512, 512
 OUTPUT_IMAGE_KEY = "output_img"
 LOADED_IMAGE_KEY = "loaded_image"
@@ -217,6 +217,11 @@ def generate(
         with open(f"{filename}.txt", "w") as f:
             f.write(prompt)
 
+    
+    # After generating the images, clear the GPU cache
+    torch.cuda.empty_cache()
+
+    
     return output_images  # return the list of image objects
 
 
@@ -225,23 +230,30 @@ def generate(
 
 
 def prompt_and_generate_button(prefix, pipeline_name: PIPELINE_NAMES, **kwargs):
-    prompt = st.text_area(
-        "Prompt",
-        value=DEFAULT_PROMPT,
-        key=f"{prefix}-prompt",
-    )
-    negative_prompt = st.text_area(
-        "Negative prompt",
-        value="(disfigured), bad quality, ((bad art)), ((deformed)), ((extra limbs)), (((duplicate))), ((morbid)), (((ugly)), blurry, ((bad anatomy)), (((bad proportions))), cloned face, body out of frame, out of frame, bad anatomy, gross proportions, (malformed limbs), ((missing arms)), ((missing legs)), (((extra arms))), (((extra legs))), (fused fingers), (too many fingers), (((long neck))), Deformed, blurry",
-        key=f"{prefix}-negative-prompt",
-    )
     col1, col2 = st.columns(2)
     with col1:
-        steps = st.slider("Number of inference steps", min_value=11, max_value=69, value=14, key=f"{prefix}-inference-steps")
+        prompt = st.text_area(
+            "Prompt",
+            value=DEFAULT_PROMPT,
+            key=f"{prefix}-prompt",
+        )
     with col2:
+        negative_prompt = st.text_area(
+            "Negative prompt",
+            value="(disfigured), bad quality, ((bad art)), ((deformed)), ((extra limbs)), (((duplicate))), ((morbid)), (((ugly)), blurry, ((bad anatomy)), (((bad proportions))), cloned face, body out of frame, out of frame, bad anatomy, gross proportions, (malformed limbs), ((missing arms)), ((missing legs)), (((extra arms))), (((extra legs))), (fused fingers), (too many fingers), (((long neck))), Deformed, blurry",
+            key=f"{prefix}-negative-prompt",
+        )
+
+    col3, col4, col5 = st.columns(3)
+    with col3:
+        steps = st.slider("Number of inference steps", min_value=11, max_value=69, value=14, key=f"{prefix}-inference-steps")
+    with col4:
         guidance_scale = st.slider(
             "Guidance scale", min_value=0.0, max_value=20.0, value=7.5, step=0.5, key=f"{prefix}-guidance-scale"
         )
+    with col5:
+        num_images = st.slider("Number of images to generate", min_value=1, max_value=2, value=1, key=f"{prefix}-num-images")
+        
     # Add a select box for the schedulers
     scheduler_name = st.selectbox(
         "Choose a Scheduler",
@@ -256,7 +268,6 @@ def prompt_and_generate_button(prefix, pipeline_name: PIPELINE_NAMES, **kwargs):
     
    # enable_attention_slicing = st.checkbox('Enable attention slicing (enables higher resolutions but is slower)', key=f"{prefix}-attention-slicing", value=True)
    # enable_xformers = st.checkbox('Enable xformers library (better memory usage)', key=f"{prefix}-xformers", value=True)
-    num_images = st.slider("Number of images to generate", min_value=1, max_value=4, value=1, key=f"{prefix}-num-images")
 
     images = []
 
