@@ -1,11 +1,10 @@
 ![image](https://github.com/1e-2/HF-Gradio-FF-beta-Playground/assets/136929515/c0731389-da39-4aa5-b49e-bca14dbe9519)
 # FFusionAI-Streamlit-Playground
-
-![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)
 [![Hugging Face Model](https://img.shields.io/badge/Hugging%20Face-FFusion--BaSE-blue)](https://huggingface.co/FFusion/FFusion-BaSE)
 [![GitHub](https://img.shields.io/badge/GitHub-1e--2-green)](https://github.com/1e-2)
 [![Facebook](https://img.shields.io/badge/Facebook-FFusionAI-blue)](https://www.facebook.com/FFusionAI/)
 [![Civitai](https://img.shields.io/badge/Civitai-FFusionAI-red)](https://civitai.com/models/82039/ffusion-ai-sd-21)
+[![DOI](https://img.shields.io/badge/DOI-10.57967%2Fhf%2F0851-blue)](https://huggingface.co/10.57967/hf/0851)
 
 Welcome to **FFusionAI-Streamlit-Playground**, an innovative web application hosted on **Hugging Face Spaces**. This project utilizes the power of **[Streamlit](https://streamlit.io/)** to create an interactive user interface for exploring and generating images with the **[FFusion AI model](https://huggingface.co/FFusion/FFusion-BaSE)**.
 
@@ -37,7 +36,19 @@ We welcome feedback and contributions to this project. If you have any suggestio
 
 ## License
 
-This project is licensed under the terms of the MIT license. The FFusion AI model is licensed under its own terms, which can be found at [10.57967/hf/0851](https://huggingface.co/10.57967/hf/0851).
+This project is licensed under the terms of the MIT license. The FFusion AI model is licensed under its own terms, which can be found at [![DOI](https://img.shields.io/badge/DOI-10.57967%2Fhf%2F0851-blue)](https://huggingface.co/10.57967/hf/0851)
+
 
 demo @ https://huggingface.co/spaces/FFusion/FFusionAI-Streamlit-Playground
 used portions of dlebech & diffuzers stramlit code
+
+Models:
+
+[![FFusion-BaSE](https://img.shields.io/badge/2.1%20🤗%20Model-FFusion--BaSE-blue)](https://huggingface.co/FFusion/FFusion-BaSE)
+[![di.FFUSION.ai-v2.1-768-BaSE-alpha](https://img.shields.io/badge/🤗%20Model-di.FFUSION.ai--v2.1--768--BaSE--alpha-blue)](https://huggingface.co/FFusion/di.FFUSION.ai-v2.1-768-BaSE-alpha)
+[![di.ffusion.ai.Beta512](https://img.shields.io/badge/2.1%20🤗%20Model-di.ffusion.ai.Beta512-blue)](https://huggingface.co/FFusion/di.ffusion.ai.Beta512)
+[![FFUSION.ai-Text-Encoder-LyCORIS-SD-2.1](https://img.shields.io/badge/2.1%20🤗%20Model-FFUSION.ai--Text--Encoder--LyCORIS--SD--2.1-blue)](https://huggingface.co/FFusion/FFUSION.ai-Text-Encoder-LyCORIS-SD-2.1)
+
+Contact:
+
+[![Email](https://img.shields.io/badge/Email-di%40ffusion.ai-blue)](mailto:di@ffusion.ai)
